@@ -22,7 +22,7 @@ if __name__=='__main__':
                 custom_net_args = {'n_outputs':83, 'n_locations':52},
                 loss = 'bce', loss_args = {},
                 num_epochs=NUM_EPOCHS, patience = 15,
-                batch_size = 4, device = 'all', data_parallel = False,
+                batch_size = 2, device = 'all', data_parallel = False,
                 use_test_set = False, task = 'train_eval',
                 old_params_dir = '',
                 dataset_class = custom_datasets.CTDataset_2019_10,
