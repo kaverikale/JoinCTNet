@@ -44,11 +44,12 @@ plt.ioff() #turn interactive plotting off
 #suppress numpy warnings
 import warnings
 warnings.filterwarnings('ignore')
+diseases = ['air_trapping', 'airspace_disease', 'aneurysm', 'arthritis', 'aspiration', 'atelectasis', 'atherosclerosis', 'bandlike_or_linear', 'breast_implant', 'breast_surgery', 'bronchial_wall_thickening', 'bronchiectasis', 'bronchiolectasis', 'bronchiolitis', 'bronchitis', 'cabg', 'calcification', 'cancer', 'cardiomegaly', 'catheter_or_port', 'cavitation', 'chest_tube', 'clip', 'congestion', 'consolidation', 'coronary_artery_disease', 'cyst', 'debris', 'deformity', 'density', 'dilation_or_ectasia', 'distention', 'emphysema', 'fibrosis', 'fracture', 'gi_tube', 'granuloma', 'groundglass', 'hardware', 'heart_failure', 'heart_valve_replacement', 'hemothorax', 'hernia', 'honeycombing', 'infection', 'infiltrate', 'inflammation', 'interstitial_lung_disease', 'lesion', 'lucency', 'lung_resection', 'lymphadenopathy', 'mass', 'mucous_plugging', 'nodule', 'opacity', 'other_path', 'pacemaker_or_defib', 'pericardial_effusion', 'pericardial_thickening', 'plaque', 'pleural_effusion', 'pleural_thickening', 'pneumonia', 'pneumonitis', 'pneumothorax', 'postsurgical', 'pulmonary_edema', 'reticulation', 'scarring', 'scattered_calc', 'scattered_nod', 'secretion', 'septal_thickening', 'soft_tissue', 'staple', 'stent', 'sternotomy', 'suture', 'tracheal_tube', 'transplant', 'tree_in_bud', 'tuberculosis']
 
 #######################
 # Reporting Functions #---------------------------------------------------------
 #######################
-def initialize_evaluation_dfs(all_labels, num_epochs):
+def initialize_evaluation_dfs(all_labels, loc_label_meanings, num_epochs):
     """Create empty "eval_dfs_dict"
     Variables
     <all_labels>: a list of strings describing the labels in order
@@ -59,23 +60,51 @@ def initialize_evaluation_dfs(all_labels, num_epochs):
     else:
         index = all_labels
         numrows = len(all_labels)
+    print(numrows, index)
+    loc_index = loc_label_meanings
+    loc_munrows = len(loc_label_meanings)
     #Initialize empty pandas dataframe to store evaluation results across epochs
     #for accuracy, AUROC, and AP
     result_df = pd.DataFrame(data=np.zeros((numrows, num_epochs)),
                             index = index,
                             columns = ['epoch_'+str(n) for n in range(0,num_epochs)])
+
+    loc_result_df_dict = dict.fromkeys(diseases, None)
+    for dis in diseases:
+        loc_result_df_dict[dis] = pd.DataFrame(data=np.zeros((loc_munrows, num_epochs)),
+                            index = loc_index,
+                            columns = ['epoch_'+str(n) for n in range(0,num_epochs)])
     #Initialize empty pandas dataframe to store evaluation results for top k
+
     top_k_result_df = pd.DataFrame(np.zeros((len(all_labels), num_epochs)),
                                    index=[x for x in range(1,len(all_labels)+1)], #e.g. 1,...,64 for len(all_labels)=64
                                    columns = ['epoch_'+str(n) for n in range(0,num_epochs)])
     
+
+    loc_top_k_result_df_dict = dict.fromkeys(diseases, None)
+   
+    for dis in diseases:
+        loc_top_k_result_df_dict[dis] = pd.DataFrame(np.zeros((len(loc_label_meanings), num_epochs)),
+                                   index=[x for x in range(1,len(loc_label_meanings)+1)], #e.g. 1,...,64 for len(all_labels)=64
+                                   columns = ['epoch_'+str(n) for n in range(0,num_epochs)])
+
     #Make eval results dictionaries
     eval_results_valid = {'accuracy':copy.deepcopy(result_df),
         'auroc':copy.deepcopy(result_df),
         'avg_precision':copy.deepcopy(result_df),
         'top_k':top_k_result_df}
     eval_results_test = copy.deepcopy(eval_results_valid)
-    return eval_results_valid, eval_results_test
+    
+    loc_eval_results_valid = dict.fromkeys(diseases, None)
+    
+    for dis in diseases:
+        loc_eval_results_valid[dis] = {'accuracy':copy.deepcopy(loc_result_df_dict[dis]),
+            'auroc':copy.deepcopy(loc_result_df_dict[dis]),
+            'avg_precision':copy.deepcopy(loc_result_df_dict[dis]),
+            'top_k':loc_top_k_result_df_dict[dis]}
+    loc_eval_results_test = copy.deepcopy(loc_eval_results_valid)
+
+    return eval_results_valid, eval_results_test, loc_eval_results_valid, loc_eval_results_test
 
 def save(eval_dfs_dict, results_dir, descriptor):
     """Variables
@@ -134,8 +163,8 @@ def clean_up_output_files(best_valid_epoch, results_dir):
 #########################
 # Calculation Functions #-------------------------------------------------------
 #########################        
-def evaluate_all(eval_dfs_dict, epoch, label_meanings,
-                 true_labels_array, nodule_true_labels_array,  pred_probs_array, nodule_pred_probs_array):
+def evaluate_all(eval_dfs_dict,loc_eval_dfs_dict, epoch, label_meanings, loc_label_meanings,
+                 true_labels_array, loc_true_labels_array,  pred_probs_array, loc_pred_probs_array):
     """Fill out the pandas dataframes in the dictionary <eval_dfs_dict>
     which is created in cnn.py. <epoch> and <which_label> are used to index into
     the dataframe for the metric. Metrics calculated for the provided vectors
@@ -165,11 +194,33 @@ def evaluate_all(eval_dfs_dict, epoch, label_meanings,
                                          pos_label = 1)
         (eval_dfs_dict['auroc']).at[which_label, 'epoch_'+str(epoch)] = sklearn.metrics.auc(fpr, tpr)
         (eval_dfs_dict['avg_precision']).at[which_label, 'epoch_'+str(epoch)] = sklearn.metrics.average_precision_score(true_labels, pred_probs)
+     #location
     
-    #Top k eval metrics (iter over examples)
-    eval_dfs_dict['top_k'] = evaluate_top_k(eval_dfs_dict['top_k'],
-                                    epoch, true_labels_array, pred_probs_array)
-    return eval_dfs_dict
+    
+    for dis in diseases:
+
+        for label_number in range(len(loc_label_meanings)):
+            which_label = loc_label_meanings[label_number] #descriptive string for the label
+            true_labels = loc_true_labels_array[dis][:,label_number]
+            pred_probs = loc_pred_probs_array[dis][:,label_number]
+            pred_labels = (pred_probs>=0.5).astype(dtype='int') #decision threshold of 0.5
+            
+            #Accuracy and confusion matrix (dependent on decision threshold)
+            (loc_eval_dfs_dict[dis]['accuracy']).at[which_label, 'epoch_'+str(epoch)] = compute_accuracy(true_labels, pred_labels)
+            #confusion_matrix, sensitivity, specificity, ppv, npv = compute_confusion_matrix(true_labels, pred_labels)
+            
+            #AUROC and AP (sliding across multiple decision thresholds)
+            fpr, tpr, thresholds = sklearn.metrics.roc_curve(y_true = true_labels,
+                                            y_score = pred_probs,
+                                            pos_label = 1)
+            (loc_eval_dfs_dict[dis]['auroc']).at[which_label, 'epoch_'+str(epoch)] = sklearn.metrics.auc(fpr, tpr)
+            (loc_eval_dfs_dict[dis]['avg_precision']).at[which_label, 'epoch_'+str(epoch)] = sklearn.metrics.average_precision_score(true_labels, pred_probs)
+    
+        #Top k eval metrics (iter over examples)
+        loc_eval_dfs_dict[dis]['top_k'] = evaluate_top_k(loc_eval_dfs_dict[dis]['top_k'],
+                                        epoch, loc_true_labels_array[dis], loc_pred_probs_array[dis])
+
+    return eval_dfs_dict, loc_eval_dfs_dict
 
 #################
 # Top K Metrics #---------------------------------------------------------------
@@ -266,7 +317,7 @@ def get_fpr_tpr_for_thresh(fpr, tpr, thresh):
 ######################
 # Plotting Functions #----------------------------------------------------------
 ######################
-def plot_pr_and_roc_curves(results_dir, label_meanings, true_labels, pred_probs,
+def plot_pr_and_roc_curves(results_dir, label_meanings, loc_label_meanings, true_labels, pred_probs,
                            epoch):
     #Plot Precision Recall Curve
     
@@ -277,7 +328,7 @@ def plot_pr_and_roc_curves(results_dir, label_meanings, true_labels, pred_probs,
     plot_roc_curve(fpr, tpr, epoch, outfilepath)
 
 
-def plot_roc_curve_multi_class(label_meanings, y_test, y_loc_test_dict, y_score, loc_y_score_dict,  
+def plot_roc_curve_multi_class(label_meanings, loc_label_meanings, y_test, y_loc_test_dict, y_score, loc_y_score_dict,  
                                outdir, setname, epoch):
     """<label_meanings>: list of strings, one for each label
     <y_test>: matrix of ground truth
@@ -328,7 +379,7 @@ def plot_roc_curve_multi_class(label_meanings, y_test, y_loc_test_dict, y_score,
     plt.savefig(outfilepath)
     plt.close()
 
-def plot_pr_curve_multi_class(label_meanings, y_test, y_loc_test_dict, y_score, loc_y_score_dict,
+def plot_pr_curve_multi_class(label_meanings, loc_label_meanings, y_test, y_loc_test_dict, y_score, loc_y_score_dict,
                               outdir, setname, epoch):
     """<label_meanings>: list of strings, one for each label
     <y_test>: matrix of ground truth

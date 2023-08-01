@@ -10,7 +10,7 @@ from load_dataset import custom_datasets
 #the code on the fake data. In all of the experiments reported in the paper,
 #NUM_EPOCHS was set to 100. No model actually trained all the way to 100 epochs
 #due to use of early stopping.
-NUM_EPOCHS = 2
+NUM_EPOCHS = 50
 
 if __name__=='__main__':
     ####################################
@@ -19,10 +19,10 @@ if __name__=='__main__':
     tot0 = timeit.default_timer()
     DukeCTModel(descriptor = 'CTNet83',
                 custom_net = custom_models_ctnet.CTNetModel,
-                custom_net_args = {'n_outputs':83, 'n_locations':52},
+                custom_net_args = {'n_outputs':84, 'n_locations':52},
                 loss = 'bce', loss_args = {},
                 num_epochs=NUM_EPOCHS, patience = 15,
-                batch_size = 2, device = 'all', data_parallel = False,
+                batch_size = 4, device = 'all', data_parallel = False,
                 use_test_set = False, task = 'train_eval',
                 old_params_dir = '',
                 dataset_class = custom_datasets.CTDataset_2019_10,
@@ -32,7 +32,7 @@ if __name__=='__main__':
                                     'pixel_bounds':[-1000,200],
                                     'data_augment':True,
                                     'crop_type':'single',
-                                    'selected_note_acc_files':{'train':'/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/metadata/train_matadata.csv','valid':'/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/metadata/valid_matadata.csv'}})
+                                    'selected_note_acc_files':{'train':'preprocessed_data/metadata/train_matadata.csv','valid':'preprocessed_data/metadata/valid_matadata.csv'}})
     tot1 = timeit.default_timer()
     print('Total Time', round((tot1 - tot0)/60.0,2),'minutes')
     '''

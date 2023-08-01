@@ -1,7 +1,7 @@
 import pandas as pd
 import csv
 import numpy as np
-df = pd.read_csv('/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/imgvalid_Abnormality_and_Location_Labels.csv')
+df = pd.read_csv('/Users/kaveri/backup_May2023/JointCTNet/JoinCTNet/preprocessed_data/imgtrain_Abnormality_and_Location_Labels.csv')
 columns = list(df.columns)
 print(len(columns))
 new_columns = []
@@ -21,4 +21,4 @@ for ind, row in df.iterrows():
         if row[column] == 1:
             new_df.loc[ind, splits[0]] = 1
 new_df = new_df.reindex(sorted(new_df.columns), axis=1)
-new_df.to_csv('/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/imgvalid_Abnormality_and_Labels.csv', index=False)
+new_df.to_csv('/Users/kaveri/backup_May2023/JointCTNet/JoinCTNet/preprocessed_data/binary_data/imgtrain_BinaryLabels.csv', index=False)

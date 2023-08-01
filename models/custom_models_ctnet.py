@@ -65,7 +65,7 @@ class CTNetModel(nn.Module):
             
             nn.Linear(96, n_outputs))
         self.location_classifier = nn.Sequential(
-            nn.Linear(16*18*5*5 + 83, 128), #7200
+            nn.Linear(16*18*5*5 + 84, 128), #7200
             nn.ReLU(True),
             nn.Dropout(0.5),
             

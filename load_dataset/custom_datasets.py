@@ -84,11 +84,11 @@ class CTDataset_2019_10(Dataset):
         self.crop_type = crop_type
         assert self.crop_type == 'single'
         self.selected_note_acc_files = selected_note_acc_files
+        self.diseases = ['aneurysm', 'breast_surgery', 'staple', 'density', 'calcification', 'fracture', 'suture', 'soft_tissue', 'reticulation', 'consolidation', 'pericardial_thickening', 'bronchiolitis', 'opacity', 'aspiration', 'pneumothorax', 'chest_tube', 'cyst', 'atherosclerosis', 'debris', 'postsurgical', 'arthritis', 'septal_thickening', 'bronchiolectasis', 'granuloma', 'dilation_or_ectasia', 'clip', 'fibrosis', 'catheter_or_port', 'heart_failure', 'scattered_calc', 'cabg', 'transplant', 'breast_implant', 'infection', 'pericardial_effusion', 'mass', 'tracheal_tube', 'distention', 'pacemaker_or_defib', 'lucency', 'scarring', 'scattered_nod', 'tuberculosis', 'congestion', 'inflammation', 'hardware', 'atelectasis', 'interstitial_lung_disease', 'lesion', 'sternotomy', 'cardiomegaly', 'bronchiectasis', 'pneumonia', 'cavitation', 'coronary_artery_disease', 'pleural_thickening', 'hemothorax', 'bronchitis', 'lung_resection', 'nodule', 'nodulegr1cm', 'infiltrate', 'bandlike_or_linear', 'secretion', 'hernia', 'pneumonitis', 'gi_tube', 'pulmonary_edema', 'pleural_effusion', 'groundglass', 'heart_valve_replacement', 'honeycombing', 'airspace_disease', 'lymphadenopathy', 'cancer', 'tree_in_bud', 'bronchial_wall_thickening', 'plaque', 'other_path', 'emphysema', 'deformity', 'mucous_plugging', 'stent', 'air_trapping']
         
-        self.diseases = ['aneurysm', 'breast_surgery', 'staple', 'density', 'calcification', 'fracture', 'suture', 'soft_tissue', 'reticulation', 'consolidation', 'pericardial_thickening', 'bronchiolitis', 'opacity', 'aspiration', 'pneumothorax', 'chest_tube', 'cyst', 'atherosclerosis', 'debris', 'postsurgical', 'arthritis', 'septal_thickening', 'bronchiolectasis', 'granuloma', 'dilation_or_ectasia', 'clip', 'fibrosis', 'catheter_or_port', 'heart_failure', 'scattered_calc', 'cabg', 'transplant', 'breast_implant', 'infection', 'pericardial_effusion', 'mass', 'tracheal_tube', 'distention', 'pacemaker_or_defib', 'lucency', 'scarring', 'scattered_nod', 'tuberculosis', 'congestion', 'inflammation', 'hardware', 'atelectasis', 'interstitial_lung_disease', 'lesion', 'sternotomy', 'cardiomegaly', 'bronchiectasis', 'pneumonia', 'cavitation', 'coronary_artery_disease', 'pleural_thickening', 'hemothorax', 'bronchitis', 'lung_resection', 'nodule', 'infiltrate', 'bandlike_or_linear', 'secretion', 'hernia', 'pneumonitis', 'gi_tube', 'pulmonary_edema', 'pleural_effusion', 'groundglass', 'heart_valve_replacement', 'honeycombing', 'airspace_disease', 'lymphadenopathy', 'cancer', 'tree_in_bud', 'bronchial_wall_thickening', 'plaque', 'other_path', 'emphysema', 'deformity', 'mucous_plugging', 'stent', 'air_trapping']
         #Define location of the CT volumes
         self.main_clean_path = '/Users/kaveri/backup_May2023/CT_report_generation/dataset'
-        self.volume_log_df = pd.read_csv('/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/metadata/Summary_log.csv',header=0,index_col=0)
+        self.volume_log_df = pd.read_csv('preprocessed_data/metadata/Summary_log.csv',header=0,index_col=0)
         
         #Get the example ids
         self.volume_accessions = self.get_volume_accessions()
@@ -170,12 +170,8 @@ class CTDataset_2019_10(Dataset):
         """<volume_acc> is for example RHAA12345_6.npz"""
         #Load compressed npz file: [slices, square, square]
         path = f'/Users/kaveri/backup_May2023/CT_report_generation/dataset/{volume_acc}'
-        print(path)
-        try:
-            ctvol = np.load(path)['ct']
-        except:
-            path = '/Users/kaveri/backup_May2023/CT_report_generation/dataset/trn00022.npz'
-            ctvol = np.load(path)['ct']
+        ctvol = np.load(path)['ct']
+
         
         #Prepare the CT volume data (already torch Tensors)
         data = utils.prepare_ctvol_2019_10_dataset(ctvol, self.pixel_bounds, self.data_augment, self.num_channels, self.crop_type)
@@ -225,7 +221,7 @@ class CTDataset_2019_10(Dataset):
         <setname> can be 'train', 'valid', or 'test'."""
         location_labels = dict.fromkeys(self.diseases, None)
         for dis in self.diseases:
-            labels_file = '/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/location_binary_data/img'+setname+'_'+dis+'_BinaryLabels.csv'
+            labels_file = 'preprocessed_data/location_binary_data/img'+setname+'_'+dis+'_BinaryLabels.csv'
             location_labels[dis] = pd.read_csv(labels_file, header=0, index_col = 0)
             #location_labels[dis] = location_labels[dis].head(2)
         return location_labels
@@ -235,5 +231,5 @@ def read_in_labels(label_type_ld, setname):
     Accession numbers are the index and labels (e.g. "pneumonia") are the columns.
     <setname> can be 'train', 'valid', or 'test'."""
     assert label_type_ld == 'disease_new'
-    labels_file = '/Users/kaveri/backup_May2023/CT_report_generation/dataset/preprocessed_data/binary_data/img'+setname+'_BinaryLabels.csv'
+    labels_file = 'preprocessed_data/binary_data/img'+setname+'_BinaryLabels.csv'
     return pd.read_csv(labels_file, header=0, index_col = 0)

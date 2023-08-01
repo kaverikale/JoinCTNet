@@ -80,7 +80,7 @@ class DukeCTModel(object):
         self.loss_args = loss_args
         self.num_epochs = num_epochs
         self.batch_size = batch_size
-        self.diseases = ['aneurysm', 'breast_surgery', 'staple', 'density', 'calcification', 'fracture', 'suture', 'soft_tissue', 'reticulation', 'consolidation', 'pericardial_thickening', 'bronchiolitis', 'opacity', 'aspiration', 'pneumothorax', 'chest_tube', 'cyst', 'atherosclerosis', 'debris', 'postsurgical', 'arthritis', 'septal_thickening', 'bronchiolectasis', 'granuloma', 'dilation_or_ectasia', 'clip', 'fibrosis', 'catheter_or_port', 'heart_failure', 'scattered_calc', 'cabg', 'transplant', 'breast_implant', 'infection', 'pericardial_effusion', 'mass', 'tracheal_tube', 'distention', 'pacemaker_or_defib', 'lucency', 'scarring', 'scattered_nod', 'tuberculosis', 'congestion', 'inflammation', 'hardware', 'atelectasis', 'interstitial_lung_disease', 'lesion', 'sternotomy', 'cardiomegaly', 'bronchiectasis', 'pneumonia', 'cavitation', 'coronary_artery_disease', 'pleural_thickening', 'hemothorax', 'bronchitis', 'lung_resection', 'nodule', 'infiltrate', 'bandlike_or_linear', 'secretion', 'hernia', 'pneumonitis', 'gi_tube', 'pulmonary_edema', 'pleural_effusion', 'groundglass', 'heart_valve_replacement', 'honeycombing', 'airspace_disease', 'lymphadenopathy', 'cancer', 'tree_in_bud', 'bronchial_wall_thickening', 'plaque', 'other_path', 'emphysema', 'deformity', 'mucous_plugging', 'stent', 'air_trapping']
+        self.diseases = ['air_trapping', 'airspace_disease', 'aneurysm', 'arthritis', 'aspiration', 'atelectasis', 'atherosclerosis', 'bandlike_or_linear', 'breast_implant', 'breast_surgery', 'bronchial_wall_thickening', 'bronchiectasis', 'bronchiolectasis', 'bronchiolitis', 'bronchitis', 'cabg', 'calcification', 'cancer', 'cardiomegaly', 'catheter_or_port', 'cavitation', 'chest_tube', 'clip', 'congestion', 'consolidation', 'coronary_artery_disease', 'cyst', 'debris', 'deformity', 'density', 'dilation_or_ectasia', 'distention', 'emphysema', 'fibrosis', 'fracture', 'gi_tube', 'granuloma', 'groundglass', 'hardware', 'heart_failure', 'heart_valve_replacement', 'hemothorax', 'hernia', 'honeycombing', 'infection', 'infiltrate', 'inflammation', 'interstitial_lung_disease', 'lesion', 'lucency', 'lung_resection', 'lymphadenopathy', 'mass', 'mucous_plugging', 'nodule', 'opacity', 'other_path', 'pacemaker_or_defib', 'pericardial_effusion', 'pericardial_thickening', 'plaque', 'pleural_effusion', 'pleural_thickening', 'pneumonia', 'pneumonitis', 'pneumothorax', 'postsurgical', 'pulmonary_edema', 'reticulation', 'scarring', 'scattered_calc', 'scattered_nod', 'secretion', 'septal_thickening', 'soft_tissue', 'staple', 'stent', 'sternotomy', 'suture', 'tracheal_tube', 'transplant', 'tree_in_bud', 'tuberculosis']
 
         #num_workers is number of threads to use for data loading
         self.num_workers = 0 # int(batch_size*4) #batch_size 1 = num_workers 4. batch_size 2 = num workers 8. batch_size 4 = num_workers 16.
@@ -112,6 +112,7 @@ class DukeCTModel(object):
         #Get label meanings, a list of descriptive strings (list elements must
         #be strings found in the column headers of the labels file)
         self.set_up_label_meanings(self.dataset_args['label_meanings'])
+        self.set_up_loc_label_meanings()
         if self.task == 'train_eval':
             self.dataset_train = self.CTDatasetClass(setname = 'train', **self.dataset_args)
             self.dataset_valid = self.CTDatasetClass(setname = 'valid', **self.dataset_args)
@@ -121,7 +122,7 @@ class DukeCTModel(object):
         #Tracking losses and evaluation results
         self.train_loss = np.zeros((self.num_epochs))
         self.valid_loss = np.zeros((self.num_epochs))
-        self.eval_results_valid, self.eval_results_test = evaluate.initialize_evaluation_dfs(self.label_meanings, self.num_epochs)
+        self.eval_results_valid, self.eval_results_test, self.loc_eval_results_valid, self.loc_eval_results_test = evaluate.initialize_evaluation_dfs(self.label_meanings, self.loc_label_meanings, self.num_epochs)
         
         #For early stopping
         self.initial_patience = patience
@@ -139,7 +140,12 @@ class DukeCTModel(object):
             self.label_meanings = temp.columns.values.tolist()
         else: #use the label meanings that were passed in
             self.label_meanings = label_meanings
-        
+        print('self.label_meanings', self.label_meanings)
+
+    def set_up_loc_label_meanings(self):
+        self.loc_label_meanings = ['abdomen','adrenal_gland','airways','anterior','aorta','aortic_valve','axilla','bone','breast','centrilobular','chest_wall','diaphragm','esophagus','gallbladder','heart','hilum','inferior','interstitial','intestine','ivc','kidney','lateral','left','left_lower','left_lung','left_mid','left_upper','liver','lung','medial','mediastinum','mitral_valve','other_location','pancreas','posterior','pulmonary_artery','pulmonary_valve','pulmonary_vein','rib','right','right_lower','right_lung','right_mid','right_upper','spine','spleen','stomach','subpleural','superior','svc','thyroid','tricuspid_valve']
+         
+
     def set_up_results_dirs(self):
         if not os.path.isdir('results'):
             os.mkdir('results')
@@ -214,8 +220,9 @@ class DukeCTModel(object):
         with torch.no_grad():
             epoch_loss, pred_epoch, loc_pred_epoch_dict, gr_truth_epoch, loc_gr_truth_epoch_dict, volume_accs_epoch = self.iterate_through_batches(model, dataloader, epoch, training=False)
         self.valid_loss[epoch] = epoch_loss
-        self.eval_results_valid = evaluate.evaluate_all(self.eval_results_valid, epoch,
-            self.label_meanings, gr_truth_epoch, loc_gr_truth_epoch_dict, pred_epoch, loc_pred_epoch_dict)
+        self.eval_results_valid, self.loc_eval_results_valid = evaluate.evaluate_all(self.eval_results_valid,self.loc_eval_results_valid, epoch,
+            self.label_meanings, self.loc_label_meanings, gr_truth_epoch, loc_gr_truth_epoch_dict, pred_epoch, loc_pred_epoch_dict)
+
         self.early_stopping_check(epoch, pred_epoch,loc_pred_epoch_dict, gr_truth_epoch, loc_gr_truth_epoch_dict, volume_accs_epoch)
         print("{:5s} {:<3d} {:11s} {:.3f}".format('Epoch', epoch, 'Valid Loss', epoch_loss))
     
@@ -255,8 +262,8 @@ class DukeCTModel(object):
         model.load_state_dict(check_point['params'])
         with torch.no_grad():
             epoch_loss, pred_epoch, loc_pred_epoch, gr_truth_epoch, loc_gr_truth_epoch, volume_accs_epoch = self.iterate_through_batches(model, dataloader, epoch, training=False)
-        self.eval_results_test = evaluate.evaluate_all(self.eval_results_test, epoch,
-            self.label_meanings, gr_truth_epoch, pred_epoch, loc_pred_epoch)
+        self.eval_results_test, self.loc_eval_results_test = evaluate.evaluate_all(self.eval_results_test, self.loc_eval_results_valid, epoch,
+            self.label_meanings, self.loc_label_meanings, gr_truth_epoch, pred_epoch, loc_pred_epoch)
         self.plot_roc_and_pr_curves('test', epoch, pred_epoch, loc_pred_epoch, gr_truth_epoch, loc_gr_truth_epoch)
         self.save_all_pred_probs('test', epoch, pred_epoch, loc_pred_epoch, gr_truth_epoch, loc_gr_truth_epoch, volume_accs_epoch)
         print("{:5s} {:<3d} {:11s} {:.3f}".format('Epoch', epoch, 'Test Loss', epoch_loss))
@@ -268,7 +275,7 @@ class DukeCTModel(object):
         #Do NOT use concatenation, or else you will have memory fragmentation.
         num_examples = len(dataloader.dataset)
         num_labels = len(self.label_meanings)
-        num_loc_labels = 52
+        num_loc_labels = len(self.loc_label_meanings)
         pred_epoch = np.zeros([num_examples,num_labels])
 
         loc_pred_epoch_dict = dict.fromkeys(self.diseases, None)
@@ -350,21 +357,22 @@ class DukeCTModel(object):
         outdir = os.path.join(self.results_dir,'curves')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
-        evaluate.plot_roc_curve_multi_class(label_meanings=self.label_meanings,
+        evaluate.plot_roc_curve_multi_class(label_meanings=self.label_meanings, loc_label_meanings = self.loc_label_meanings,
                     y_test=gr_truth_epoch, y_loc_test_dict = loc_gr_truth_epoch_dict, y_score=pred_epoch, loc_y_score_dict=loc_pred_epoch_dict,
                     outdir = outdir, setname = setname, epoch = epoch)
-        evaluate.plot_pr_curve_multi_class(label_meanings=self.label_meanings,
+        evaluate.plot_pr_curve_multi_class(label_meanings=self.label_meanings,loc_label_meanings = self.loc_label_meanings,
                     y_test=gr_truth_epoch, y_loc_test_dict = loc_gr_truth_epoch_dict, y_score=pred_epoch, loc_y_score_dict=loc_pred_epoch_dict,
                     outdir = outdir, setname = setname, epoch = epoch)
     
-    def save_all_pred_probs(self, setname, epoch, pred_epoch, loc_pred_epoch, gr_truth_epoch, loc_gr_truth_epoch, volume_accs_epoch):
+    def save_all_pred_probs(self, setname, epoch, pred_epoch, loc_pred_epoch_dict, gr_truth_epoch, loc_gr_truth_epoch_dict, volume_accs_epoch):
         outdir = os.path.join(self.results_dir,'pred_probs')
         if not os.path.isdir(outdir):
             os.mkdir(outdir)
         (pd.DataFrame(pred_epoch,columns=self.label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_predprob_ep'+str(epoch)+'.csv'))
         (pd.DataFrame(gr_truth_epoch,columns=self.label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_grtruth_ep'+str(epoch)+'.csv'))
-        #(pd.DataFrame(loc_pred_epoch,columns=self.label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_loc_predprob_ep'+str(epoch)+'.csv'))
-        #(pd.DataFrame(loc_gr_truth_epoch,columns=self.label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_loc_grtruth_ep'+str(epoch)+'.csv'))
+        for key in loc_pred_epoch_dict:
+            (pd.DataFrame(loc_pred_epoch_dict[key],columns=self.loc_label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_'+key+'_loc_predprob_ep'+str(epoch)+'.csv'))
+            (pd.DataFrame(loc_gr_truth_epoch_dict[key],columns=self.loc_label_meanings,index=volume_accs_epoch.tolist())).to_csv(os.path.join(outdir, setname+'_'+key+'_loc_grtruth_ep'+str(epoch)+'.csv'))
 
     def save_evals(self, epoch):
         evaluate.save(self.eval_results_valid, self.results_dir, self.descriptor+'_valid')
